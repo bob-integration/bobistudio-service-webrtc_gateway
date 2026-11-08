@@ -1,0 +1,116 @@
+<div id="set-tab-webrtc" class="set-tab-content" style="display:none">
+    <h2>{{ _('service.webrtc_gateway.webrtc_passerelle_mediamtx') }}</h2>
+    <div class="meta" style="margin-bottom:var(--space-3)">{{ _('service.webrtc_gateway.container_dedie_executant_mediamtx_recoi') }}</div>
+
+    <!-- Sous-onglets WebRTC -->
+    <div class="tabs" style="margin-bottom:var(--space-4); border-bottom:1px solid var(--border-soft)">
+        <button class="tab active" id="webrtc-subtab-btn-status"
+                onclick="switchWebrtcSub('status')">{{ _('service.webrtc_gateway.etat_du_serveur') }}</button>
+        <button class="tab" id="webrtc-subtab-btn-container"
+                onclick="switchWebrtcSub('container')">{{ _('service.webrtc_gateway.container_creation_suppression') }}</button>
+    </div>
+
+    <!-- ─── Sous-onglet : {{ _('service.webrtc_gateway.etat_du_serveur') }} ─── -->
+    <div id="webrtc-sub-status">
+        <div class="row" style="align-items:center; gap:var(--space-3); margin-bottom:var(--space-3)">
+            <span id="webrtc_state_badge" class="badge" style="font-size:0.95em">—</span>
+            <button class="btn" onclick="rafraichirWebrtc()">{{ _('service.webrtc_gateway.rafraichir') }}</button>
+        </div>
+        <div class="form">
+            <div class="row">
+                <div class="field" style="flex:1"><label>Container</label>
+                    <div id="webrtc_status_container" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>VMID</label>
+                    <div id="webrtc_status_vmid" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>Hostname</label>
+                    <div id="webrtc_status_host" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>IP</label>
+                    <div id="webrtc_status_ip" class="meta" style="font-family:var(--font-mono); font-size:0.85em">—</div></div>
+            </div>
+            <div class="row" style="margin-top:var(--space-2)">
+                <div class="field" style="flex:1"><label>MediaMTX</label>
+                    <div id="webrtc_status_running" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>Version</label>
+                    <div id="webrtc_status_version" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>{{ _('service.webrtc_gateway.webrtc_active') }}</label>
+                    <div id="webrtc_status_enabled" class="meta">—</div></div>
+                <div class="field" style="flex:1"><label>Ingest</label>
+                    <div id="webrtc_status_proto" class="meta">—</div></div>
+            </div>
+            <div class="row" style="margin-top:var(--space-2)">
+                <div class="field" style="flex:1"><label>Ports (RTSP / HTTP / API)</label>
+                    <div id="webrtc_status_ports" class="meta" style="font-family:var(--font-mono); font-size:0.85em">—</div></div>
+            </div>
+        </div>
+
+        <h3 style="margin-top:var(--space-4)">URLs</h3>
+        <div class="form">
+            <div class="row"><div class="field" style="flex:1"><label>{{ _('service.webrtc_gateway.ingest_push_encodeur') }}</label>
+                <div id="webrtc_url_ingest" class="meta" style="font-family:var(--font-mono); font-size:0.85em">—</div></div></div>
+            <div class="row" style="margin-top:var(--space-1)"><div class="field" style="flex:1"><label>{{ _('service.webrtc_gateway.lecture_whep_player') }}</label>
+                <div id="webrtc_url_player" class="meta" style="font-family:var(--font-mono); font-size:0.85em">—</div></div></div>
+            <div class="row" style="margin-top:var(--space-1)"><div class="field" style="flex:1"><label>{{ _('service.webrtc_gateway.api_mediamtx') }}</label>
+                <div id="webrtc_url_api" class="meta" style="font-family:var(--font-mono); font-size:0.85em">—</div></div></div>
+        </div>
+
+        <h3 style="margin-top:var(--space-4)">{{ _('service.webrtc_gateway.flux_actifs_paths') }}</h3>
+        <div id="webrtc_paths_table" class="meta">—</div>
+        <div id="webrtc_status_error" class="meta" style="margin-top:var(--space-2); color:var(--status-stopped-fg)"></div>
+    </div>
+
+    <!-- ─── Sous-onglet : {{ _('service.webrtc_gateway.container_creation_suppression') }} ─── -->
+    <div id="webrtc-sub-container" style="display:none">
+        <h3>{{ _('service.webrtc_gateway.deployer_la_passerelle') }}</h3>
+        <div class="form">
+            <div class="row" style="align-items:center; flex-wrap:wrap; gap:var(--space-2)">
+                <span class="meta">{{ _('service.webrtc_gateway.etat') }}</span>
+                <span id="webrtc_deploy_badge" class="meta">—</span>
+                <div class="field"><label>{{ _('service.webrtc_gateway.nud_docker') }}</label>
+                    <select id="s_webrtc_node" style="min-width:200px">
+                        <option value="">{{ _('service.webrtc_gateway.chargement') }}</option>
+                    </select></div>
+                <button class="btn btn-blue" onclick="deployerWebrtc()">{{ _('service.webrtc_gateway.deployer_la_passerelle') }}</button>
+                <span id="webrtc_deploy_status" class="meta"></span>
+            </div>
+            <pre id="webrtc_deploy_log" style="display:none; margin-top:var(--space-3); max-height:300px; overflow:auto;
+                 background:var(--bg-input); border:1px solid var(--border-soft); border-radius:4px;
+                 padding:var(--space-2); font-size:0.82em; white-space:pre-wrap; line-height:1.4"></pre>
+        </div>
+
+        <h3 style="margin-top:var(--space-4)">Configuration</h3>
+        <div class="form">
+            <div class="row" style="flex-wrap:wrap; gap:var(--space-2)">
+                <div class="field"><label>
+                    <input type="checkbox" class="ios-toggle" id="s_webrtc_enabled">
+                    {{ _('service.webrtc_gateway.activer_resout_les_destinations_webrtc_d') }}
+                </label></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.protocole_d_ingest') }}</label>
+                    <select id="s_webrtc_proto">
+                        <option value="rtsp">{{ _('service.webrtc_gateway.rtsp_recommande') }}</option>
+                        <option value="whip">WHIP (ffmpeg ≥ 7.1)</option>
+                    </select></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.port_rtsp') }}</label>
+                    <input type="number" id="s_webrtc_rtsp_port" value="8554"></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.port_webrtc_whep_http') }}</label>
+                    <input type="number" id="s_webrtc_http_port" value="8889"></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.port_api') }}</label>
+                    <input type="number" id="s_webrtc_api_port" value="9997"></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.version_mediamtx') }}</label>
+                    <input type="text" id="s_webrtc_version" value="1.21.1" class="wide" readonly></div>
+                <div class="field"><label>{{ _('service.webrtc_gateway.redemarrages_avant_alerte') }}</label>
+                    <input type="number" id="s_script_restart_threshold" value="3" min="1" style="width:80px"></div>
+                <button class="btn btn-green" onclick="appliquerWebrtc()">{{ _('service.webrtc_gateway.appliquer') }}</button>
+            </div>
+            <div id="webrtc_msg" class="meta" style="margin-top:var(--space-2)"></div>
+        </div>
+
+        <h3 style="margin-top:var(--space-4); color:var(--status-error-fg)">{{ _('service.webrtc_gateway.zone_dangereuse') }}</h3>
+        <div class="form">
+            <div class="row" style="align-items:center; gap:var(--space-3)">
+                <button class="btn btn-red" onclick="supprimerWebrtc()">{{ _('service.webrtc_gateway.supprimer_le_container_mediamtx') }}</button>
+                <span class="meta">{{ _('service.webrtc_gateway.detruit_le_container_passerelle_et_desac') }}</span>
+            </div>
+            <div id="webrtc_destroy_msg" class="meta" style="margin-top:var(--space-2)"></div>
+        </div>
+    </div>
+</div>

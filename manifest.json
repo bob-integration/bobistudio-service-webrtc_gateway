@@ -1,0 +1,87 @@
+{
+  "id": "webrtc_gateway",
+  "label": "WebRTC",
+  "help": {"category": "transport"},
+  "nav_tab": "webrtc",
+  "install_offer": "on",
+  "tab_template": "webrtc_gateway/settings_tab.html",
+  "settings_keys": {
+    "webrtc_enabled": {
+      "type": "bool",
+      "default": false
+    },
+    "webrtc_gateway_vmid": {
+      "type": "int",
+      "default": 0
+    },
+    "webrtc_gateway_ip": {
+      "type": "str",
+      "default": ""
+    },
+    "webrtc_ingest_proto": {
+      "type": "str",
+      "default": "rtsp"
+    },
+    "webrtc_rtsp_port": {
+      "type": "int",
+      "default": 8554
+    },
+    "webrtc_http_port": {
+      "type": "int",
+      "default": 8889
+    },
+    "webrtc_udp_port": {
+      "type": "int",
+      "default": 8189
+    },
+    "webrtc_api_port": {
+      "type": "int",
+      "default": 9997
+    },
+    "webrtc_mediamtx_version": {
+      "type": "str",
+      "default": "1.21.1"
+    },
+    "webrtc_absolute_timestamp": {
+      "type": "bool",
+      "default": false
+    },
+    "webrtc_image": {
+      "type": "str",
+      "default": "bobi-webrtc:0.1"
+    },
+    "webrtc_node_id": {
+      "type": "int",
+      "default": 0
+    },
+    "script_restart_alert_threshold": {
+      "type": "int",
+      "default": 3
+    }
+  },
+  "ports": [
+    {
+      "setting": "webrtc_http_port",
+      "proto": "tcp",
+      "desc": "WHEP et page de lecture embarquée — joint EN DIRECT par le navigateur. Sans ce port publié, en « réseau interne », le panneau de monitoring reste noir sans message."
+    },
+    {
+      "setting": "webrtc_udp_port",
+      "proto": "udp",
+      "desc": "MÉDIA WebRTC (ICE/UDP) — le flux audio/vidéo lui-même, distinct de la signalisation. Sans ce port publié, en « réseau interne », la signalisation répond 200 et toutes les sessions meurent sur « deadline exceeded while waiting connection »."
+    },
+    {
+      "setting": "webrtc_udp_port",
+      "proto": "tcp",
+      "desc": "MÉDIA WebRTC en repli TCP (même port) — pour un poste dont le réseau bloque l'UDP sortant. Sans lui, ces postes restent noirs alors que les autres lisent."
+    },
+    {
+      "setting": "webrtc_rtsp_port",
+      "proto": "tcp",
+      "desc": "Ingest RTSP d'un encodeur TIERS. Nos propres streamers sont sur le même réseau que la passerelle et n'en ont pas besoin."
+    }
+  ],
+  "version": "0.3.4",
+  "order": 2,
+  "description": "Passerelle WebRTC MediaMTX — container dédié recevant les flux des encodeurs (RTSP/WHIP) et les redistribuant en WebRTC (WHEP) pour la prévisualisation navigateur."
+}

@@ -1,0 +1,40 @@
+{
+  "version": "0.3.4",
+  "published_at": "2026-11-08",
+  "changes": {
+    "Proposée à l'installation, et moins gourmande (0.3.4)": [
+      "`install_offer: \"on\"` — le service est proposé ET pré-coché à la fin de l'installation. Il était éteint par défaut, et `routes/pages.py` retire de Réglages l'onglet d'un service éteint : rien ne disait qu'il existe, alors que sans lui aucune vidéo n'apparaît dans le navigateur (bouton « Monitoring », prévisualisation d'un flux) et la destination WebRTC d'un flux n'émet nulle part. Aucun prérequis de site, contrairement à NMOS et SAP qui annoncent sur le réseau.",
+      "La passerelle naît en poids CPU « Arrière-plan » : elle relaie des aperçus et ne doit pas disputer le CPU à un flux d'antenne quand le nœud sature. Posé à la CRÉATION seulement, pour que le choix de l'exploitant soit gardé ensuite.",
+      "`help.category` : rubrique de l'aide (Services › sous-rubrique)."
+    ],
+    "Le MÉDIA n'est pas la SIGNALISATION (0.3.3)": [
+      "Panne relevée le 2026-10-28 après un passage en « réseau interne » : la page de lecture répondait 200, l'encodeur publiait à 25 fps, et toutes les sessions mouraient sur « deadline exceeded while waiting connection ». Tout ce qu'on regardait était vert. Deux causes, et il fallait les deux.",
+      "Seuls la signalisation WHEP et l'ingest étaient déclarés en ports publiés. Le flux lui-même passe par ICE sur un autre port, jamais publié donc jamais joignable depuis le LAN. Nouveau réglage `webrtc_udp_port` (8189), publié en UDP **et** en TCP sur le même numéro : un poste dont le réseau bloque l'UDP sortant resterait sinon noir pendant que les autres lisent.",
+      "Les candidats ICE n'annonçaient que l'IP du conteneur, privée au nœud. `webrtcAdditionalHosts` porte maintenant l'adresse de l'hôte vue du site. On AJOUTE cette adresse : l'IP du conteneur reste candidate, et c'est par elle que l'orchestrateur lit depuis le nœud. En mode site, rien n'est ajouté et rien n'est publié — le conteneur y est une machine du LAN.",
+      "Le nœud est pris EXPLICITEMENT au déploiement : la passerelle n'est pas encore en base sur le nœud visé, et s'en remettre aux réglages aurait produit la configuration du nœud précédent — la même panne, déplacée.",
+      "Garde `verif_webrtc_media_ice` (27 contrôles, 10/10 mutations mordent). L'invariant qui compte : le port écrit dans la configuration de MediaMTX est vérifié présent dans la liste des ports publiés. S'ils divergeaient, ICE annoncerait une adresse où rien n'écoute et le symptôme serait identique à la panne d'origine."
+    ],
+    "Ports publiés, et l'adresse du NAVIGATEUR (0.3.2)": [
+      "Le manifeste déclare ses ports publiés : WHEP et page embarquée (joints EN DIRECT par le navigateur), ingest RTSP d'un encodeur tiers. Pas l'API de MediaMTX, appelée par l'orchestrateur seul.",
+      "★ Publier le port ne sert à rien sans corriger l'URL. En « réseau interne », `webrtc_gateway_ip` est l'IP du CONTENEUR, privée au nœud : une URL bâtie avec elle et envoyée à un navigateur pointe une adresse qui n'existe pas pour lui, et la lecture reste NOIRE sans erreur ni alerte, avec une passerelle qui va parfaitement bien. L'adresse rendue est donc celle de l'hôte, où le port publié aboutit ; ce que l'orchestrateur appelle garde l'IP du conteneur, ces ports n'étant pas publiés.",
+      "`ingest_url` a deux publics, maintenant explicites : nos propres streamers (même réseau que la passerelle, en direct, défaut) et un encodeur tiers dont l'adresse est recopiée à la main."
+    ],
+    "Écoute des consoles en Opus/WebRTC (0.3.1)": [
+      "Alternative COMPRESSÉE à l'écoute L16 d'une console audio (`/listen.pcm`, ~1,5 Mbit/s par auditeur) pour une liaison distante (4G, VPN) : un lecteur WHEP sur `cl-<ip>-<bus>` fait démarrer par MediaMTX (`runOnDemand`) UN ffmpeg par (console, bus) qui lit `/listen.pcm` et publie de l'Opus 96 kbit/s (lowdelay, trames de 10 ms) ; arrêté 10 s après le départ du dernier lecteur. Aucun conteneur, aucun reaper ; un seul des 4 écouteurs de la console consommé, quel que soit le nombre d'auditeurs WebRTC.",
+      "Orchestrateur : GET /api/webrtc/console-listen/<vmid>[?bus=] (disponibilité + raison codée), POST …/whep (offre SDP relayée à la passerelle, mêmes droits que /listen.pcm), PATCH/DELETE /api/webrtc/console-listen/session/<jeton>. La page parle à sa propre origine (pas de contenu mixte, pas de CORS) ; le média va directement du navigateur à la passerelle.",
+      "MESURÉ 2026-10-16 (console 1160, MediaMTX 1.21.1 + même commande ffmpeg sur le contrôleur, relecture RTSP) : 52-57 ms médian de la sortie /listen.pcm à l'audio relu (13-82 ms), 98 kbit/s, ~6 % d'un cœur ; démarrage à froid 0,5 s (offre → réponse), 13 ms si le relais tourne déjà. Non mesuré : le tampon de gigue du navigateur.",
+      "⚠ Exige ffmpeg dans l'image : bobi-webrtc 0.6.1. Avec une image plus ancienne le chemin n'est pas déclaré (`listen_relay: false`) — rien ne casse."
+    ],
+    "MediaMTX 1.21.1 et horodatage absolu (0.3.0)": [
+      "MediaMTX passe de 1.9.3 à 1.21.1 (dernière stable publiée depuis plus de deux semaines au 2026-10-12). Version FIXÉE par le service (MEDIAMTX_VERSION) ; le script ne garde le binaire pré-baké de l'image que s'il a cette version, sinon il télécharge l'archive officielle et vérifie son empreinte SHA-256 (version sans empreinte connue : refusée, erreur sur :8080). /api/webrtc/apply refuse une autre version au lieu de la déployer sans vérification.",
+      "★ Horodatage absolu (`useAbsoluteTimestamp`, MediaMTX ≥ 1.12) activé en ingestion RTSP : la passerelle garde la date NTP des SR RTCP de l'encodeur au lieu de dater chaque paquet à son arrivée — c'est cette date que le navigateur utilise pour caler son et image. Ce que la passerelle applique RÉELLEMENT (rapport :8080) est persisté dans `webrtc_absolute_timestamp`, que le streamer lit pour retirer sa compensation fixe de 90 ms.",
+      "Serveur MoQ (apparu en 1.19, actif par défaut) coupé : il ouvrait :8892/:8893 et fabriquait un certificat auto-signé.",
+      "⚠ Avec l'horodatage absolu, MediaMTX jette les paquets reçus avant le premier SR RTCP qu'il accepte : environ 5 s de plus avant l'image au DÉMARRAGE d'un encodeur (pas au changement de source à chaud du moniteur)."
+    ],
+    "Nouveautés (0.2.0)": [
+      "Déploiement Docker de la passerelle (en plus du LXC) : sur un nœud macvlan, la passerelle tourne en conteneur compute avec l'image dédiée bobi-webrtc (MediaMTX PRÉ-BAKÉ → démarrage immédiat, aucun téléchargement runtime). Réutilise intégralement le chemin compute (docker run + agent :8081 via deployer_script) ; l'IP est attribuée par l'IPAM macvlan de Docker (unicité garantie) et persistée dans webrtc_gateway_ip. Sélecteur « Cible » (LXC local vs nœud Docker) dans Réglages → WebRTC. Indispensable sur les nœuds tout-Docker sans template LXC 299 (cas d'un nœud sans LXC). Nouveaux settings : webrtc_image (tag, défaut bobi-webrtc:0.1), webrtc_node_id (dernier nœud choisi). Image buildable via Réglages → Déploiement → Local (entrée bobi-webrtc)."
+    ],
+    "Corrections": [],
+    "Bugs connus": []
+  }
+}
