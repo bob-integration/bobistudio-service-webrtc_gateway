@@ -6,46 +6,48 @@ dédiée, qui reçoit les flux de nos encodeurs et les redistribue au navigateur
 
 ## Ce que ça fait
 
-C'est par elle que passe **toute vidéo vue dans un navigateur** : le panneau de monitoring présent
-sur chaque page, la prévisualisation d'un flux sur la page Streams, et la destination `webrtc` d'un
-flux sortant. Sans elle, l'UDP et le SRT fonctionnent et le navigateur reste noir.
+C'est par elle que passe toute vidéo vue dans un navigateur : le panneau de monitoring présent sur
+chaque page, la prévisualisation d'un flux sur la page Streams, la destination `webrtc` d'un flux
+sortant.
 
 Un `streamer` pousse en RTSP (ou WHIP) vers la passerelle, qui sert la lecture en **WHEP** et une
-page de lecture embarquable. L'orchestrateur ne relaie pas le média : il donne l'adresse, le flux
+page de lecture embarquable. L'orchestrateur ne relaie pas le média : il donne l'adresse, et le flux
 va directement de la passerelle au navigateur.
 
 ## Un conteneur dédié, pas une bibliothèque
 
 La passerelle est un conteneur managé comme un autre, déployé depuis **Réglages → WebRTC** et non
 depuis la palette : c'est de l'**infrastructure partagée**, pas une ressource de projet. Elle
-survit donc au rappel d'un projet et au RAZ, qui ne balaient pas ce que l'exploitant ne peut pas
-recréer d'un clic.
+survit donc au rappel d'un projet et au RAZ, qui épargnent ce que l'exploitant ne peut pas recréer
+d'un clic.
 
-Elle naît en poids CPU « Arrière-plan » : elle relaie des aperçus et ne doit pas disputer le CPU à
-un flux d'antenne quand le nœud sature. Posé à la création seulement — ensuite, le choix de
-l'exploitant est gardé.
+Elle naît en poids CPU « Arrière-plan » : elle relaie des aperçus, et laisse donc la main à un flux
+d'antenne quand le nœud sature. Posé à la création seulement — ensuite, le choix de l'exploitant
+est gardé.
 
-## Deux adresses, quatre ports
+## Adresses et ports
 
-Le piège de ce service est là, et il a coûté deux pannes dont **tous les voyants étaient verts**.
+Deux parties joignent la passerelle, et pas par le même chemin. L'**orchestrateur** l'appelle depuis
+le nœud, sur l'IP du conteneur et des ports qui restent fermés au LAN. Le **navigateur** la joint
+depuis le LAN, sur l'adresse de l'hôte, là où les ports publiés aboutissent. Le service rend
+l'adresse qui convient à celui qui demande — aucun appelant n'a à connaître la règle.
 
-En mode « réseau interne », l'IP de la passerelle est celle du *conteneur*, privée au nœud. Une URL
-bâtie avec elle et envoyée à un navigateur pointe une adresse qui n'existe pas pour lui : lecture
-noire, sans erreur et sans alerte. Le service distingue donc explicitement l'adresse jointe par le
-**navigateur** (celle de l'hôte, où le port publié aboutit) de celle que l'**orchestrateur** appelle
-(celle du conteneur, sur des ports non publiés).
+Une session WebRTC demande deux choses distinctes, d'où quatre ports publiés :
 
-Et la **signalisation n'est pas le média** : WHEP répond sur son port TCP pendant que le flux ICE
-passe par un autre, en UDP. Déclarer le premier sans le second donne une session qui s'ouvre, puis
-meurt sur `deadline exceeded while waiting connection`. Le port média est donc publié en UDP **et**
-en TCP sur le même numéro, pour un poste dont le réseau bloque l'UDP sortant.
+| Port | Ce qui passe |
+|---|---|
+| WHEP, TCP | la signalisation, et la page de lecture embarquée |
+| média, UDP | le flux audio/vidéo lui-même, par ICE |
+| média, TCP | même numéro, pour un poste dont le réseau bloque l'UDP sortant |
+| ingest RTSP, TCP | un encodeur tiers ; nos propres streamers sont sur le réseau de la passerelle |
 
-Les candidats ICE annoncent en plus l'adresse de l'hôte vue du site. En mode « site », rien n'est
-ajouté et rien n'est publié : le conteneur y est une machine du LAN.
+Les candidats ICE portent l'adresse de l'hôte vue du site, afin que le navigateur reçoive une
+adresse qu'il peut atteindre, et l'IP du conteneur reste candidate : c'est par elle que
+l'orchestrateur lit depuis le nœud. En mode « site », la passerelle est une machine du LAN comme
+une autre — rien n'est ajouté et rien n'est publié.
 
-Garde : `verif_webrtc_media_ice` du dépôt principal vérifie que le port écrit dans la configuration
-de MediaMTX est bien dans la liste des ports publiés. S'ils divergeaient, ICE annoncerait une
-adresse où rien n'écoute — exactement le symptôme d'origine.
+Les deux déclarations se tiennent : la garde `verif_webrtc_media_ice` du dépôt principal vérifie que
+le port média écrit dans la configuration de MediaMTX figure dans la liste des ports publiés.
 
 ## Écoute de console en Opus
 
@@ -61,26 +63,23 @@ d'un cœur ; démarrage à froid 0,5 s. Le tampon de gigue du navigateur n'est p
 ## Version de MediaMTX
 
 Elle est **fixée par le service** (`MEDIAMTX_VERSION`), pas réglable depuis l'interface. Le script
-ne garde le binaire pré-baké de l'image que s'il porte cette version ; sinon il télécharge
-l'archive officielle et **vérifie son empreinte SHA-256**. Une version dont l'empreinte est inconnue
-est refusée, plutôt que déployée sans vérification. Changer de version, c'est donc mettre à jour les
-deux endroits.
+garde le binaire pré-baké de l'image s'il porte cette version ; sinon il télécharge l'archive
+officielle et **vérifie son empreinte SHA-256**, connue pour la version fixée. Changer de version,
+c'est donc mettre à jour les deux.
 
-Le serveur MoQ, actif par défaut depuis MediaMTX 1.19, est coupé : il ouvrait deux ports et
-fabriquait un certificat auto-signé.
+Seuls les protocoles que le produit utilise sont activés — le serveur MoQ, actif par défaut depuis
+MediaMTX 1.19, est coupé.
 
-⚠ L'horodatage absolu (`useAbsoluteTimestamp`) est activé en ingestion RTSP — la passerelle garde la
-date NTP de l'encodeur au lieu de dater à l'arrivée, et c'est cette date qui cale son et image.
-Contrepartie : MediaMTX jette les paquets reçus avant le premier rapport RTCP qu'il accepte, soit
-environ 5 s de plus avant l'image au **démarrage** d'un encodeur (pas au changement de source à
-chaud du moniteur).
+L'horodatage absolu (`useAbsoluteTimestamp`) est activé en ingestion RTSP : la passerelle garde la
+date NTP de l'encodeur au lieu de dater les paquets à leur arrivée, et c'est cette date qui cale
+son et image. L'image apparaît donc au premier rapport RTCP accepté, environ 5 s après le
+**démarrage** d'un encodeur ; un changement de source à chaud du moniteur n'attend pas.
 
 ## Installation
 
-Le service se déclare proposable à l'installation (`install_offer`), proposé et pré-coché à la fin
-du parcours, sans prérequis de site. C'est délibéré : les services portant une clé `*_enabled` sont
-éteints par défaut, et un service éteint n'a pas d'onglet dans Réglages — celui-ci serait donc resté
-invisible alors que son absence éteint toute lecture navigateur.
+Le service se déclare proposable à l'installation (`install_offer`) : proposé et pré-coché à la fin
+du parcours, sans prérequis de site — il n'annonce rien sur le réseau, contrairement à NMOS ou SAP.
+C'est le service lui-même qui le déclare, et non l'installeur qui tient une liste.
 
 Image Docker `bobi-webrtc` (MediaMTX pré-baké → démarrage immédiat), constructible depuis
 **Réglages → Déploiement**.
