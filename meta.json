@@ -1,7 +1,10 @@
 {
-  "version": "0.3.4",
+  "version": "0.3.5",
   "published_at": "2026-11-08",
   "changes": {
+    "Version minimale du cœur déclarée (0.3.5)": [
+      "Le manifeste déclare `requires.core_min` = 0.9.14 : l'orchestrateur refuse de l'installer sur un cœur plus ancien et le dit. Valeur = le cœur avec lequel le code actuel a été fait ; le service tourne DANS l'orchestrateur et importe `app.*`."
+    ],
     "Proposée à l'installation, et moins gourmande (0.3.4)": [
       "`install_offer: \"on\"` — le service est proposé ET pré-coché à la fin de l'installation. Il était éteint par défaut, et `routes/pages.py` retire de Réglages l'onglet d'un service éteint : rien ne disait qu'il existe, alors que sans lui aucune vidéo n'apparaît dans le navigateur (bouton « Monitoring », prévisualisation d'un flux) et la destination WebRTC d'un flux n'émet nulle part. Aucun prérequis de site, contrairement à NMOS et SAP qui annoncent sur le réseau.",
       "La passerelle naît en poids CPU « Arrière-plan » : elle relaie des aperçus et ne doit pas disputer le CPU à un flux d'antenne quand le nœud sature. Posé à la CRÉATION seulement, pour que le choix de l'exploitant soit gardé ensuite.",

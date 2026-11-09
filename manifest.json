@@ -81,7 +81,8 @@
       "desc": "Ingest RTSP d'un encodeur TIERS. Nos propres streamers sont sur le même réseau que la passerelle et n'en ont pas besoin."
     }
   ],
-  "version": "0.3.4",
+  "version": "0.3.5",
+  "requires": {"core_min": "0.9.14"},
   "order": 2,
   "description": "Passerelle WebRTC MediaMTX — container dédié recevant les flux des encodeurs (RTSP/WHIP) et les redistribuant en WebRTC (WHEP) pour la prévisualisation navigateur."
 }
