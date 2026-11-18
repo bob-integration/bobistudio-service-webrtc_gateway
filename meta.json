@@ -1,7 +1,13 @@
 {
-  "version": "0.3.5",
-  "published_at": "2026-11-08",
+  "version": "0.3.6",
+  "published_at": "2026-11-18",
   "changes": {
+    "Déployée toute seule sur une installation à un seul nœud (0.3.6)": [
+      "Sur un tout-en-un, la passerelle n'a qu'un endroit possible, et il fallait pourtant ouvrir Réglages → WebRTC, choisir ce nœud dans une liste d'une ligne et cliquer. D'ici là, le panneau de monitoring restait noir sur toutes les pages.",
+      "Elle se déploie maintenant d'elle-même quand le service est allumé, qu'aucune passerelle n'existe, que le cluster n'a qu'un nœud et que l'image bobi-webrtc est sur ce nœud. Trois déclencheurs : l'allumage du service, la fin de construction de l'image, le démarrage de l'orchestrateur.",
+      "Un cluster de deux nœuds ou plus n'est jamais touché, même si un seul est éligible : la place de la passerelle y est un choix. Une passerelle détruite par l'exploitant n'est pas recréée (la destruction éteint le service).",
+      "Un échec lève une alerte qui donne le motif ; le geste reste listé dans « Ce qui reste à faire ». Garde : `tests/verif_webrtc_auto_deploy.py`."
+    ],
     "Version minimale du cœur déclarée (0.3.5)": [
       "Le manifeste déclare `requires.core_min` = 0.9.14 : l'orchestrateur refuse de l'installer sur un cœur plus ancien et le dit. Valeur = le cœur avec lequel le code actuel a été fait ; le service tourne DANS l'orchestrateur et importe `app.*`."
     ],

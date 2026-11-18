@@ -215,11 +215,7 @@ def _deploy_gateway_docker_iter(node_id):
     image = node.get("webrtc_image") or st.get("webrtc_image") or "bobi-webrtc:0.1"
     # Pré-check de PRÉSENCE RÉELLE de l'image sur le nœud (pas seulement le setting non vide) → message
     # actionnable au lieu d'un `docker run` qui échoue (« pull access denied ») + faux « déployé ».
-    import shlex
-    from app.host_ops import ssh_run
-    rc_img, _o, _e = ssh_run(node["host"],
-                             f"docker image inspect {shlex.quote(image)} >/dev/null 2>&1", timeout=20)
-    if rc_img != 0:
+    if not _image_on_node(node, image):
         yield (f"❌ Image {image} absente sur {node['name']}. Construis-la d'abord : Réglages → "
                f"Déploiement → onglet Build (règle « Hôte de build » sur un nœud Docker, ex. "
                f"{node['name']}) puis Construire/Pousser, et redéploie la passerelle.")
@@ -249,8 +245,6 @@ def _deploy_gateway_docker_iter(node_id):
             from app import cpu_weight as _cw
             _cw.poser_defaut(target, "background")
         except Exception as _exc:                                            # noqa: BLE001
-            # `_e` est déjà pris plus haut dans cette fonction (dépaquetage de `ssh_run`) : une
-            # liaison `except ... as _e` l'EFFACERAIT à la sortie du bloc.
             log.warning("default cpu weight for the gateway could not be set: %s", _exc)
         yield f"  → conteneur Docker #{target} enregistré."
 
@@ -299,6 +293,93 @@ def deploy_gateway_iter(node_id=None):
         yield "❌ Choisis un nœud Docker (déploiement de la passerelle en Docker uniquement)."
         return
     yield from _deploy_gateway_docker_iter(node_id)
+
+
+def _image_on_node(node, image):
+    """True when `image` is really present on `node` (not just named in a setting)."""
+    import shlex
+    from app.host_ops import ssh_run
+    rc, _o, _e = ssh_run(node["host"], f"docker image inspect {shlex.quote(image)} >/dev/null 2>&1",
+                         timeout=20)
+    return rc == 0
+
+
+# ─── Automatic deployment on a single-node install (2026-11-18) ──────────────────────────────────
+# On an all-in-one install the gateway has exactly one possible home, yet the operator had to open
+# Settings → WebRTC, pick that node from a one-item list and click Deploy — and until then the
+# monitoring panel stayed black on every page. With one node there is no decision to make, so the
+# gateway is deployed as soon as everything it needs is there: service on, image on the node.
+# A cluster of two nodes or more is left alone even when only one is eligible right now: where the
+# gateway lives is then a placement choice. Triggers: the service being switched on (`start`), the
+# webrtc image being built (app/routes/images.py) and the orchestrator boot (main.py).
+_auto_lock = threading.Lock()
+
+
+def auto_deploy_target():
+    """(node, None) when the gateway should be deployed automatically, else (None, reason)."""
+    from app.database import db_get_nodes
+    if not st.get("webrtc_enabled"):
+        return None, "disabled"
+    vmid = int(st.get("webrtc_gateway_vmid") or 0)
+    if vmid and db_get_container(vmid):
+        return None, "already_deployed"
+    nodes = db_get_nodes()
+    if len(nodes) != 1:
+        return None, "not_single_node"
+    eligible = _eligible_docker_nodes()
+    if len(eligible) != 1 or int(eligible[0]["id"]) != int(nodes[0]["id"]):
+        return None, "not_eligible"
+    if not _image_on_node(nodes[0], eligible[0]["image"]):
+        return None, "image_missing"
+    return nodes[0], None
+
+
+def auto_deploy(trigger=""):
+    """Deploy the gateway when `auto_deploy_target` says so. Returns (deployed, reason). Blocking:
+    callers run it in a thread. A failed attempt raises an alert — the remaining-gestures list
+    still shows the gateway as missing, so the operator is told twice, never zero times."""
+    from app import ha
+    from app.database import db_add_alert
+    if not ha.is_active():
+        return False, "standby"
+    if not _auto_lock.acquire(blocking=False):
+        return False, "busy"
+    try:
+        node, reason = auto_deploy_target()
+        if not node:
+            log.info("webrtc gateway auto-deploy (%s): skipped, %s", trigger, reason)
+            return False, reason
+        log.info("webrtc gateway auto-deploy (%s): deploying on %s", trigger, node.get("name"))
+        db_set_setting("webrtc_node_id", int(node["id"]))
+        last = ""
+        try:
+            for line in deploy_gateway_iter(node_id=node["id"]):
+                log.info("webrtc gateway auto-deploy: %s", line)
+                last = line
+        except Exception as e:                                               # noqa: BLE001
+            last = f"❌ {e}"
+        ok = last.startswith("✅")
+        if ok:
+            db_add_alert("alert.webrtc_gateway.auto_deployed", "info", node_id=node["id"],
+                         kind="deploy", params={"node": node.get("name") or ""})
+        else:
+            db_add_alert("alert.webrtc_gateway.auto_deploy_failed", "warning", node_id=node["id"],
+                         kind="deploy", params={"node": node.get("name") or "",
+                                                "detail": last.lstrip("❌ ").strip()})
+        return ok, ("deployed" if ok else "failed")
+    finally:
+        _auto_lock.release()
+
+
+def auto_deploy_async(trigger=""):
+    threading.Thread(target=auto_deploy, args=(trigger,), daemon=True,
+                     name="webrtc-auto-deploy").start()
+
+
+def start(_port=None):
+    """Called by /api/services/webrtc_gateway/enable when the service is switched on. The route
+    passes the first `*_port` setting it finds (here the RTSP port): not ours to use."""
+    auto_deploy_async("enabled")
 
 
 def _live(ip):

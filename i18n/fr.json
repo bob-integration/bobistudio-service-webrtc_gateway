@@ -1,4 +1,6 @@
 {
+ "alert.webrtc_gateway.auto_deployed": "Passerelle WebRTC déployée automatiquement sur {node}, seul nœud de l'installation",
+ "alert.webrtc_gateway.auto_deploy_failed": "Passerelle WebRTC : le déploiement automatique sur {node} a échoué ({detail}). Réglages → WebRTC pour réessayer",
  "service.webrtc_gateway.activer_resout_les_destinations_webrtc_d": "Activer (résout les destinations WebRTC des encodeurs)",
  "service.webrtc_gateway.api_mediamtx": "API MediaMTX",
  "service.webrtc_gateway.appliquer": "Appliquer",

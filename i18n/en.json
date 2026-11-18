@@ -1,4 +1,6 @@
 {
+ "alert.webrtc_gateway.auto_deployed": "WebRTC gateway deployed automatically on {node}, the only node of this install",
+ "alert.webrtc_gateway.auto_deploy_failed": "WebRTC gateway: automatic deployment on {node} failed ({detail}). Settings → WebRTC to retry",
  "service.webrtc_gateway.activer_resout_les_destinations_webrtc_d": "Enable (resolves the encoders' WebRTC destinations)",
  "service.webrtc_gateway.api_mediamtx": "MediaMTX API",
  "service.webrtc_gateway.appliquer": "Apply",
